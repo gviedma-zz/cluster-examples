@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-// ExecScript returns a command to execute a script through a shell.
+// ExecScript returns a command to execute a script
 func ExecScript(script string) (*exec.Cmd, error) {
 	shell := "cmd"
 	if other := os.Getenv("SHELL"); other != "" {

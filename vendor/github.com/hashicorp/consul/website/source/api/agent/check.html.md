@@ -103,12 +103,9 @@ The table below shows this endpoint's support for
   the deregistration. This should generally be configured with a timeout that's
   much, much longer than any expected recoverable outage for the given service.
 
-- `Args` `(array<string>)` - Specifies command arguments to run to update the
-  status of the check. Prior to Consul 1.0, checks used a single `Script` field
-  to define the command to run, and would always run in a shell. In Consul
-  1.0, the `Args` array was added so that checks can be run without a shell. The
-  `Args` field is deprecated, and you should include the shell in the `Args` to
-  run under a shell, eg. `"args": ["sh", "-c", "..."]`.
+- `Script` `(string: "")` - Specifies a script or path to a script to run on
+  `Interval` to update the status of the check. If specifying a path, this path
+  must exist on disk and be readable by the Consul agent.
 
 - `DockerContainerID` `(string: "")` - Specifies that the check is a Docker
   check, and Consul will evaluate the script every `Interval` in the given
@@ -156,7 +153,7 @@ The table below shows this endpoint's support for
   "Name": "Memory utilization",
   "Notes": "Ensure we don't oversubscribe memory",
   "DeregisterCriticalServiceAfter": "90m",
-  "Args": ["/usr/local/bin/check_mem.py"],
+  "Script": "/usr/local/bin/check_mem.py",
   "DockerContainerID": "f972c95ebf0e",
   "Shell": "/bin/bash",
   "HTTP": "https://example.com",

@@ -535,39 +535,15 @@ func (a *Agent) reloadWatches(cfg *config.RuntimeConfig) error {
 	var watchPlans []*watch.Plan
 	for _, params := range cfg.Watches {
 		// Parse the watches, excluding the handler
-		wp, err := watch.ParseExempt(params, []string{"handler", "args"})
+		wp, err := watch.ParseExempt(params, []string{"handler"})
 		if err != nil {
 			return fmt.Errorf("Failed to parse watch (%#v): %v", params, err)
 		}
 
-		// Get the handler and subprocess arguments
-		handler, hasHandler := wp.Exempt["handler"]
-		args, hasArgs := wp.Exempt["args"]
-		if hasHandler {
-			a.logger.Printf("[WARN] agent: The 'handler' field in watches has been deprecated " +
-				"and replaced with the 'args' field. See https://www.consul.io/docs/agent/watches.html")
-		}
-		if _, ok := handler.(string); hasHandler && !ok {
+		// Get the handler
+		h := wp.Exempt["handler"]
+		if _, ok := h.(string); h == nil || !ok {
 			return fmt.Errorf("Watch handler must be a string")
-		}
-		if raw, ok := args.([]interface{}); hasArgs && ok {
-			var parsed []string
-			for _, arg := range raw {
-				if v, ok := arg.(string); !ok {
-					return fmt.Errorf("Watch args must be a list of strings")
-				} else {
-					parsed = append(parsed, v)
-				}
-			}
-			wp.Exempt["args"] = parsed
-		} else if hasArgs && !ok {
-			return fmt.Errorf("Watch args must be a list of strings")
-		}
-		if hasHandler && hasArgs {
-			return fmt.Errorf("Cannot define both watch handler and args")
-		}
-		if !hasHandler && !hasArgs {
-			return fmt.Errorf("Must define either watch handler or args")
 		}
 
 		// Store the watch plan
@@ -590,13 +566,7 @@ func (a *Agent) reloadWatches(cfg *config.RuntimeConfig) error {
 	for _, wp := range watchPlans {
 		a.watchPlans = append(a.watchPlans, wp)
 		go func(wp *watch.Plan) {
-			var handler interface{}
-			if h, ok := wp.Exempt["handler"]; ok {
-				handler = h
-			} else {
-				handler = wp.Exempt["args"]
-			}
-			wp.Handler = makeWatchHandler(a.LogOutput, handler)
+			wp.Handler = makeWatchHandler(a.LogOutput, wp.Exempt["handler"])
 			wp.LogOutput = a.LogOutput
 			if err := wp.Run(addr); err != nil {
 				a.logger.Printf("[ERR] Failed to run watch: %v", err)
@@ -748,14 +718,6 @@ func (a *Agent) consulConfig() (*consul.Config, error) {
 	}
 	if a.config.RPCMaxBurst > 0 {
 		base.RPCMaxBurst = a.config.RPCMaxBurst
-	}
-
-	// RPC-related performance configs.
-	if a.config.RPCHoldTimeout > 0 {
-		base.RPCHoldTimeout = a.config.RPCHoldTimeout
-	}
-	if a.config.LeaveDrainTime > 0 {
-		base.LeaveDrainTime = a.config.LeaveDrainTime
 	}
 
 	// set the src address for outgoing rpc connections
@@ -1485,8 +1447,8 @@ func (a *Agent) AddService(service *structs.NodeService, chkTypes []*structs.Che
 		service.ID = service.Service
 	}
 	for _, check := range chkTypes {
-		if err := check.Validate(); err != nil {
-			return fmt.Errorf("Check is not valid: %v", err)
+		if !check.Valid() {
+			return fmt.Errorf("Check type is not valid")
 		}
 	}
 
@@ -1602,8 +1564,8 @@ func (a *Agent) AddCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 	}
 
 	if chkType != nil {
-		if err := chkType.Validate(); err != nil {
-			return fmt.Errorf("Check is not valid: %v", err)
+		if !chkType.Valid() {
+			return fmt.Errorf("Check type is not valid")
 		}
 
 		if chkType.IsScript() && !a.config.EnableScriptChecks {
@@ -1705,11 +1667,6 @@ func (a *Agent) AddCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 					check.CheckID, MinInterval))
 				chkType.Interval = MinInterval
 			}
-			if chkType.Script != "" {
-				a.logger.Printf("[WARN] agent: check %q has the 'script' field, which has been deprecated "+
-					"and replaced with the 'args' field. See https://www.consul.io/docs/agent/checks.html",
-					check.CheckID)
-			}
 
 			if a.dockerClient == nil {
 				dc, err := NewDockerClient(os.Getenv("DOCKER_HOST"), CheckBufSize)
@@ -1727,7 +1684,6 @@ func (a *Agent) AddCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 				DockerContainerID: chkType.DockerContainerID,
 				Shell:             chkType.Shell,
 				Script:            chkType.Script,
-				ScriptArgs:        chkType.ScriptArgs,
 				Interval:          chkType.Interval,
 				Logger:            a.logger,
 				client:            a.dockerClient,
@@ -1741,24 +1697,18 @@ func (a *Agent) AddCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 				delete(a.checkMonitors, check.CheckID)
 			}
 			if chkType.Interval < MinInterval {
-				a.logger.Printf("[WARN] agent: check '%s' has interval below minimum of %v",
-					check.CheckID, MinInterval)
+				a.logger.Println(fmt.Sprintf("[WARN] agent: check '%s' has interval below minimum of %v",
+					check.CheckID, MinInterval))
 				chkType.Interval = MinInterval
-			}
-			if chkType.Script != "" {
-				a.logger.Printf("[WARN] agent: check %q has the 'script' field, which has been deprecated "+
-					"and replaced with the 'args' field. See https://www.consul.io/docs/agent/checks.html",
-					check.CheckID)
 			}
 
 			monitor := &CheckMonitor{
-				Notify:     a.state,
-				CheckID:    check.CheckID,
-				Script:     chkType.Script,
-				ScriptArgs: chkType.ScriptArgs,
-				Interval:   chkType.Interval,
-				Timeout:    chkType.Timeout,
-				Logger:     a.logger,
+				Notify:   a.state,
+				CheckID:  check.CheckID,
+				Script:   chkType.Script,
+				Interval: chkType.Interval,
+				Timeout:  chkType.Timeout,
+				Logger:   a.logger,
 			}
 			monitor.Start()
 			a.checkMonitors[check.CheckID] = monitor
@@ -2041,12 +1991,9 @@ func (a *Agent) loadServices(conf *config.RuntimeConfig) error {
 	// Register the services from config
 	for _, service := range conf.Services {
 		ns := service.NodeService()
-		chkTypes, err := service.CheckTypes()
-		if err != nil {
-			return fmt.Errorf("Failed to validate checks for service %q: %v", service.Name, err)
-		}
+		chkTypes := service.CheckTypes()
 		if err := a.AddService(ns, chkTypes, false, service.Token); err != nil {
-			return fmt.Errorf("Failed to register service %q: %v", service.Name, err)
+			return fmt.Errorf("Failed to register service '%s': %v", service.ID, err)
 		}
 	}
 
@@ -2385,8 +2332,6 @@ func (a *Agent) ReloadConfig(newCfg *config.RuntimeConfig) error {
 
 	// Update filtered metrics
 	metrics.UpdateFilter(newCfg.TelemetryAllowedPrefixes, newCfg.TelemetryBlockedPrefixes)
-
-	a.state.SetDiscardCheckOutput(newCfg.DiscardCheckOutput)
 
 	return nil
 }

@@ -3,7 +3,6 @@ package command
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 	"sync"
@@ -80,7 +79,6 @@ func (c *LockCommand) run(args []string, lu **LockUnlock) int {
 	var name string
 	var passStdin bool
 	var propagateChildCode bool
-	var shell bool
 	var timeout time.Duration
 
 	f := c.BaseCommand.NewFlagSet(c)
@@ -103,9 +101,6 @@ func (c *LockCommand) run(args []string, lu **LockUnlock) int {
 			"is generated based on the provided child command.")
 	f.BoolVar(&passStdin, "pass-stdin", false,
 		"Pass stdin to the child process.")
-	f.BoolVar(&shell, "shell", true,
-		"Use a shell to run the command (can set a custom shell via the SHELL "+
-			"environment variable).")
 	f.DurationVar(&timeout, "timeout", 0,
 		"Maximum amount of time to wait to acquire the lock, specified as a "+
 			"duration like \"1s\" or \"3h\". The default value is 0.")
@@ -134,6 +129,7 @@ func (c *LockCommand) run(args []string, lu **LockUnlock) int {
 	}
 	prefix := extra[0]
 	prefix = strings.TrimPrefix(prefix, "/")
+	script := strings.Join(extra[1:], " ")
 
 	if timeout < 0 {
 		c.UI.Error("Timeout must be positive")
@@ -142,7 +138,7 @@ func (c *LockCommand) run(args []string, lu **LockUnlock) int {
 
 	// Calculate a session name if none provided
 	if name == "" {
-		name = fmt.Sprintf("Consul lock for '%s' at '%s'", strings.Join(extra[1:], " "), prefix)
+		name = fmt.Sprintf("Consul lock for '%s' at '%s'", script, prefix)
 	}
 
 	// Calculate oneshot
@@ -204,7 +200,7 @@ func (c *LockCommand) run(args []string, lu **LockUnlock) int {
 	// Start the child process
 	childErr = make(chan error, 1)
 	go func() {
-		childErr <- c.startChild(f.Args()[1:], passStdin, shell)
+		childErr <- c.startChild(script, passStdin)
 	}()
 
 	// Monitor for shutdown, child termination, or lock loss
@@ -339,19 +335,12 @@ func (c *LockCommand) setupSemaphore(client *api.Client, limit int, prefix, name
 
 // startChild is a long running routine used to start and
 // wait for the child process to exit.
-func (c *LockCommand) startChild(args []string, passStdin, shell bool) error {
+func (c *LockCommand) startChild(script string, passStdin bool) error {
 	if c.verbose {
-		c.UI.Info("Starting handler")
+		c.UI.Info(fmt.Sprintf("Starting handler '%s'", script))
 	}
-
 	// Create the command
-	var cmd *exec.Cmd
-	var err error
-	if !shell {
-		cmd, err = agent.ExecSubprocess(args)
-	} else {
-		cmd, err = agent.ExecScript(strings.Join(args, " "))
-	}
+	cmd, err := agent.ExecScript(script)
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("Error executing handler: %s", err))
 		return err
@@ -379,14 +368,6 @@ func (c *LockCommand) startChild(args []string, passStdin, shell bool) error {
 		c.childLock.Unlock()
 		return err
 	}
-
-	// Set up signal forwarding.
-	doneCh := make(chan struct{})
-	defer close(doneCh)
-	logFn := func(err error) {
-		c.UI.Error(fmt.Sprintf("Warning, could not forward signal: %s", err))
-	}
-	agent.ForwardSignals(cmd, logFn, doneCh)
 
 	// Setup the child info
 	c.child = cmd.Process

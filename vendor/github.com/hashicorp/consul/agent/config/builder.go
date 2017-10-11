@@ -399,9 +399,6 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 	for _, s := range c.Segments {
 		name := b.stringVal(s.Name)
 		port := b.portVal(fmt.Sprintf("segments[%s].port", name), s.Port)
-		if port == 0 {
-			return RuntimeConfig{}, fmt.Errorf("Port must be specified for segment %q", s.Name)
-		}
 
 		bind := b.makeTCPAddr(
 			b.expandFirstIP(fmt.Sprintf("segments[%s].bind", name), s.Bind),
@@ -438,14 +435,6 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		default:
 			b.warn("Filter rule must begin with either '+' or '-': %q", rule)
 		}
-	}
-
-	// Add a filter rule if needed for enabling the deprecated metric names
-	enableDeprecatedNames := b.boolVal(c.Telemetry.EnableDeprecatedNames)
-	if enableDeprecatedNames {
-		telemetryAllowedPrefixes = append(telemetryAllowedPrefixes, "consul.consul")
-	} else {
-		telemetryBlockedPrefixes = append(telemetryBlockedPrefixes, "consul.consul")
 	}
 
 	// raft performance scaling
@@ -582,7 +571,6 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		DisableKeyringFile:          b.boolVal(c.DisableKeyringFile),
 		DisableRemoteExec:           b.boolVal(c.DisableRemoteExec),
 		DisableUpdateCheck:          b.boolVal(c.DisableUpdateCheck),
-		DiscardCheckOutput:          b.boolVal(c.DiscardCheckOutput),
 		EnableDebug:                 b.boolVal(c.EnableDebug),
 		EnableScriptChecks:          b.boolVal(c.EnableScriptChecks),
 		EnableSyslog:                b.boolVal(c.EnableSyslog),
@@ -591,7 +579,6 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		EncryptVerifyIncoming:       b.boolVal(c.EncryptVerifyIncoming),
 		EncryptVerifyOutgoing:       b.boolVal(c.EncryptVerifyOutgoing),
 		KeyFile:                     b.stringVal(c.KeyFile),
-		LeaveDrainTime:              b.durationVal("performance.leave_drain_time", c.Performance.LeaveDrainTime),
 		LeaveOnTerm:                 leaveOnTerm,
 		LogLevel:                    b.stringVal(c.LogLevel),
 		NodeID:                      types.NodeID(b.stringVal(c.NodeID)),
@@ -601,7 +588,6 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		PidFile:                     b.stringVal(c.PidFile),
 		RPCAdvertiseAddr:            rpcAdvertiseAddr,
 		RPCBindAddr:                 rpcBindAddr,
-		RPCHoldTimeout:              b.durationVal("performance.rpc_hold_timeout", c.Performance.RPCHoldTimeout),
 		RPCMaxBurst:                 b.intVal(c.Limits.RPCMaxBurst),
 		RPCProtocol:                 b.intVal(c.RPCProtocol),
 		RPCRateLimit:                rate.Limit(b.float64Val(c.Limits.RPCRate)),
@@ -873,6 +859,9 @@ func (b *Builder) checkVal(v *CheckDefinition) *structs.CheckDefinition {
 	}
 
 	id := types.CheckID(b.stringVal(v.ID))
+	if v.CheckID != nil {
+		id = types.CheckID(b.stringVal(v.CheckID))
+	}
 
 	return &structs.CheckDefinition{
 		ID:                id,
@@ -882,7 +871,6 @@ func (b *Builder) checkVal(v *CheckDefinition) *structs.CheckDefinition {
 		Token:             b.stringVal(v.Token),
 		Status:            b.stringVal(v.Status),
 		Script:            b.stringVal(v.Script),
-		ScriptArgs:        v.ScriptArgs,
 		HTTP:              b.stringVal(v.HTTP),
 		Header:            v.Header,
 		Method:            b.stringVal(v.Method),

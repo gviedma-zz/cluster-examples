@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/config"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/ipaddr"
@@ -309,6 +308,8 @@ func (s *HTTPServer) syncChanges() {
 	}
 }
 
+const invalidCheckMessage = "Must provide TTL or Script/DockerContainerID/HTTP/TCP and Interval"
+
 func (s *HTTPServer) AgentRegisterCheck(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "PUT" {
 		return nil, MethodNotAllowedError{req.Method, []string{"PUT"}}
@@ -343,10 +344,9 @@ func (s *HTTPServer) AgentRegisterCheck(resp http.ResponseWriter, req *http.Requ
 
 	// Verify the check type.
 	chkType := args.CheckType()
-	err := chkType.Validate()
-	if err != nil {
+	if !chkType.Valid() {
 		resp.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(resp, fmt.Errorf("Invalid check: %v", err))
+		fmt.Fprint(resp, invalidCheckMessage)
 		return nil, nil
 	}
 
@@ -524,12 +524,6 @@ func (s *HTTPServer) AgentRegisterService(resp http.ResponseWriter, req *http.Re
 			return nil
 		}
 
-		// see https://github.com/hashicorp/consul/pull/3557 why we need this
-		// and why we should get rid of it.
-		config.TranslateKeys(rawMap, map[string]string{
-			"enable_tag_override": "EnableTagOverride",
-		})
-
 		for k, v := range rawMap {
 			switch strings.ToLower(k) {
 			case "check":
@@ -575,16 +569,16 @@ func (s *HTTPServer) AgentRegisterService(resp http.ResponseWriter, req *http.Re
 	ns := args.NodeService()
 
 	// Verify the check type.
-	chkTypes, err := args.CheckTypes()
-	if err != nil {
-		resp.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(resp, fmt.Errorf("Invalid check: %v", err))
-		return nil, nil
-	}
+	chkTypes := args.CheckTypes()
 	for _, check := range chkTypes {
 		if check.Status != "" && !structs.ValidStatus(check.Status) {
 			resp.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(resp, "Status for checks must 'passing', 'warning', 'critical'")
+			return nil, nil
+		}
+		if !check.Valid() {
+			resp.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(resp, invalidCheckMessage)
 			return nil, nil
 		}
 	}

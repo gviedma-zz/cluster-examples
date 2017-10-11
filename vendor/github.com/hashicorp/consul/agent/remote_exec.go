@@ -49,7 +49,6 @@ type remoteExecEvent struct {
 // It is stored in the KV store
 type remoteExecSpec struct {
 	Command string
-	Args    []string
 	Script  []byte
 	Wait    time.Duration
 }
@@ -161,13 +160,7 @@ func (a *Agent) handleRemoteExec(msg *UserEvent) {
 
 	// Create the exec.Cmd
 	a.logger.Printf("[INFO] agent: remote exec '%s'", script)
-	var cmd *exec.Cmd
-	var err error
-	if len(spec.Args) > 0 {
-		cmd, err = ExecSubprocess(spec.Args)
-	} else {
-		cmd, err = ExecScript(script)
-	}
+	cmd, err := ExecScript(script)
 	if err != nil {
 		a.logger.Printf("[DEBUG] agent: failed to start remote exec: %v", err)
 		exitCode = 255
@@ -185,7 +178,8 @@ func (a *Agent) handleRemoteExec(msg *UserEvent) {
 	cmd.Stderr = writer
 
 	// Start execution
-	if err := cmd.Start(); err != nil {
+	err = cmd.Start()
+	if err != nil {
 		a.logger.Printf("[DEBUG] agent: failed to start remote exec: %v", err)
 		exitCode = 255
 		return

@@ -125,7 +125,6 @@ func (c *consulFSM) Apply(log *raft.Log) interface{} {
 
 func (c *consulFSM) applyRegister(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"consul", "fsm", "register"}, time.Now())
-	defer metrics.MeasureSince([]string{"fsm", "register"}, time.Now())
 	var req structs.RegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -141,7 +140,6 @@ func (c *consulFSM) applyRegister(buf []byte, index uint64) interface{} {
 
 func (c *consulFSM) applyDeregister(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"consul", "fsm", "deregister"}, time.Now())
-	defer metrics.MeasureSince([]string{"fsm", "deregister"}, time.Now())
 	var req structs.DeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -175,8 +173,6 @@ func (c *consulFSM) applyKVSOperation(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 	defer metrics.MeasureSinceWithLabels([]string{"consul", "fsm", "kvs"}, time.Now(),
-		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
-	defer metrics.MeasureSinceWithLabels([]string{"fsm", "kvs"}, time.Now(),
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
 	switch req.Op {
 	case api.KVSet:
@@ -223,8 +219,6 @@ func (c *consulFSM) applySessionOperation(buf []byte, index uint64) interface{} 
 	}
 	defer metrics.MeasureSinceWithLabels([]string{"consul", "fsm", "session"}, time.Now(),
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
-	defer metrics.MeasureSinceWithLabels([]string{"fsm", "session"}, time.Now(),
-		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
 	switch req.Op {
 	case structs.SessionCreate:
 		if err := c.state.SessionCreate(index, &req.Session); err != nil {
@@ -245,8 +239,6 @@ func (c *consulFSM) applyACLOperation(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 	defer metrics.MeasureSinceWithLabels([]string{"consul", "fsm", "acl"}, time.Now(),
-		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
-	defer metrics.MeasureSinceWithLabels([]string{"fsm", "acl"}, time.Now(),
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
 	switch req.Op {
 	case structs.ACLBootstrapInit:
@@ -280,8 +272,6 @@ func (c *consulFSM) applyTombstoneOperation(buf []byte, index uint64) interface{
 	}
 	defer metrics.MeasureSinceWithLabels([]string{"consul", "fsm", "tombstone"}, time.Now(),
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
-	defer metrics.MeasureSinceWithLabels([]string{"fsm", "tombstone"}, time.Now(),
-		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
 	switch req.Op {
 	case structs.TombstoneReap:
 		return c.state.ReapTombstones(req.ReapIndex)
@@ -301,7 +291,6 @@ func (c *consulFSM) applyCoordinateBatchUpdate(buf []byte, index uint64) interfa
 		panic(fmt.Errorf("failed to decode batch updates: %v", err))
 	}
 	defer metrics.MeasureSince([]string{"consul", "fsm", "coordinate", "batch-update"}, time.Now())
-	defer metrics.MeasureSince([]string{"fsm", "coordinate", "batch-update"}, time.Now())
 	if err := c.state.CoordinateBatchUpdate(index, updates); err != nil {
 		return err
 	}
@@ -317,8 +306,6 @@ func (c *consulFSM) applyPreparedQueryOperation(buf []byte, index uint64) interf
 	}
 
 	defer metrics.MeasureSinceWithLabels([]string{"consul", "fsm", "prepared-query"}, time.Now(),
-		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
-	defer metrics.MeasureSinceWithLabels([]string{"fsm", "prepared-query"}, time.Now(),
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
 	switch req.Op {
 	case structs.PreparedQueryCreate, structs.PreparedQueryUpdate:
@@ -337,7 +324,6 @@ func (c *consulFSM) applyTxn(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 	defer metrics.MeasureSince([]string{"consul", "fsm", "txn"}, time.Now())
-	defer metrics.MeasureSince([]string{"fsm", "txn"}, time.Now())
 	results, errors := c.state.TxnRW(index, req.Ops)
 	return structs.TxnResponse{
 		Results: results,
@@ -351,7 +337,6 @@ func (c *consulFSM) applyAutopilotUpdate(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 	defer metrics.MeasureSince([]string{"consul", "fsm", "autopilot"}, time.Now())
-	defer metrics.MeasureSince([]string{"fsm", "autopilot"}, time.Now())
 
 	if req.CAS {
 		act, err := c.state.AutopilotCASConfig(index, req.Config.ModifyIndex, &req.Config)
@@ -521,7 +506,6 @@ func (c *consulFSM) Restore(old io.ReadCloser) error {
 
 func (s *consulSnapshot) Persist(sink raft.SnapshotSink) error {
 	defer metrics.MeasureSince([]string{"consul", "fsm", "persist"}, time.Now())
-	defer metrics.MeasureSince([]string{"fsm", "persist"}, time.Now())
 
 	// Register the nodes
 	encoder := codec.NewEncoder(sink, msgpackHandle)

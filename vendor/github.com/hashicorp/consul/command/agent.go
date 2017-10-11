@@ -54,9 +54,7 @@ func (cmd *AgentCommand) readConfig() *config.RuntimeConfig {
 	config.AddFlags(fs, &flags)
 
 	if err := cmd.BaseCommand.Parse(cmd.args); err != nil {
-		if !strings.Contains(err.Error(), "help requested") {
-			cmd.UI.Error(fmt.Sprintf("error parsing flags: %v", err))
-		}
+		cmd.UI.Error(fmt.Sprintf("error parsing flags: %v", err))
 		return nil
 	}
 
@@ -225,8 +223,6 @@ func startupTelemetry(conf *config.RuntimeConfig) (*metrics.InmemSink, error) {
 	metricsConf := metrics.DefaultConfig(conf.TelemetryMetricsPrefix)
 	metricsConf.EnableHostname = !conf.TelemetryDisableHostname
 	metricsConf.FilterDefault = conf.TelemetryFilterDefault
-	metricsConf.AllowedPrefixes = conf.TelemetryAllowedPrefixes
-	metricsConf.BlockedPrefixes = conf.TelemetryBlockedPrefixes
 
 	var sinks metrics.FanoutSink
 	addSink := func(name string, fn func(*config.RuntimeConfig, string) (metrics.MetricSink, error)) error {
@@ -367,7 +363,7 @@ func (cmd *AgentCommand) run(args []string) int {
 	logGate.Flush()
 
 	// wait for signal
-	signalCh := make(chan os.Signal, 10)
+	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
 

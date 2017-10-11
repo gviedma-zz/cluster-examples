@@ -344,8 +344,8 @@ will exit with an error at startup.
     ```
 
     - `provider` (required) - the name of the provider ("gce" in this case).
+    - `project_name` (required) - the name of the project to auto-join on.
     - `tag_value` (required) - the value of the tag to auto-join on.
-    - `project_name` (optional) - the name of the project to auto-join on. Discovered if not set.
     - `zone_pattern` (optional) - the list of zones can be restricted through an RE2 compatible regular expression. If omitted, servers in all zones are returned.
     - `credentials_file` (optional) - the credentials file for authentication. See below for more information.
 
@@ -771,11 +771,6 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
 * <a name="disable_update_check"></a><a href="#disable_update_check">`disable_update_check`</a>
   Disables automatic checking for security bulletins and new version releases.
 
-* <a name="discard_check_output"></a><a href="#discard_check_output">`discard_check_output`</a>
-  Discards the output of health checks before storing them. This reduces the number of writes
-  to the Consul raft log in environments where health checks have volatile output like
-  timestamps, process ids, ...
-
 *   <a name="dns_config"></a><a href="#dns_config">`dns_config`</a> This object allows a number
     of sub-keys to be set which can tune how DNS queries are serviced. See this guide on
     [DNS caching](/docs/guides/dns-cache.html) for more detail.
@@ -963,12 +958,6 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
     Consul. See the [Server Performance](/docs/guides/performance.html) guide for more details. The
     following parameters are available:
 
-    *   <a name="leave_drain_time"></a><a href="#leave_drain_time">`leave_drain_time`</a> - A duration
-        that a server will dwell during a graceful leave in order to allow requests to be retried against
-        other Consul servers. Under normal circumstances, this can prevent clients from experiencing
-        "no leader" errors when performing a rolling update of the Consul servers. This was added in
-        Consul 1.0. Must be a duration value such as 10s. Defaults to 5s.
-
     *   <a name="raft_multiplier"></a><a href="#raft_multiplier">`raft_multiplier`</a> - An integer
         multiplier used by Consul servers to scale key Raft timing parameters. Omitting this value
         or setting it to 0 uses default timing described below. Lower values are used to tighten
@@ -985,11 +974,6 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
         prior to 0.7, and is recommended for [production Consul servers](/docs/guides/performance.html#production).
         See the note on [last contact](/docs/guides/performance.html#last-contact) timing for more
         details on tuning this parameter. The maximum allowed value is 10.
-
-    *   <a name="rpc_hold_timeout"></a><a href="#rpc_hold_timeout">`rpc_hold_timeout`</a> - A duration
-        that a client or server will retry internal RPC requests during leader elections. Under normal
-        circumstances, this can prevent clients from experiencing "no leader" errors. This was added in
-        Consul 1.0. Must be a duration value such as 10s. Defaults to 7s.
 
 * <a name="ports"></a><a href="#ports">`ports`</a> This is a nested object that allows setting
   the bind ports for the following keys:
@@ -1184,10 +1168,6 @@ Consul will not enable TLS for the HTTP API unless the `https` port has been ass
       is overlap between two rules, the more specific rule will take precedence. Blocking will take priority if the same
       prefix is listed multiple times.
 
-    * <a name="telemetry-enable_deprecated_names"></a><a href="#telemetry-enable_deprecated_names">`enable_deprecated_names`
-      </a>Added in Consul 1.0, this enables old metric names of the format `consul.consul...` to be sent alongside
-      other metrics. Defaults to false.
-
     * <a name="telemetry-statsd_address"></a><a href="#telemetry-statsd_address">`statsd_address`</a> This provides the
       address of a statsd instance in the format `host:port`. If provided, Consul will send various telemetry information to that instance for
       aggregation. This can be used to capture runtime information. This sends UDP packets only and can be used with
@@ -1336,5 +1316,4 @@ items which are reloaded include:
 * Watches
 * HTTP Client Address
 * <a href="#node_meta">Node Metadata</a>
-* <a href="#telemetry_prefix_filter">Metric Prefix Filter</a>
-* <a href="#discard_check_output">Discard Check Output</a>
+* <a href="#telemetry-prefix_filter">Metric Prefix Filter</a>

@@ -69,6 +69,15 @@ func init() {
 			}, nil
 		},
 
+		"configtest": func() (cli.Command, error) {
+			return &ConfigTestCommand{
+				BaseCommand: BaseCommand{
+					Flags: FlagSetNone,
+					UI:    ui,
+				},
+			}, nil
+		},
+
 		"event": func() (cli.Command, error) {
 			return &EventCommand{
 				BaseCommand: BaseCommand{

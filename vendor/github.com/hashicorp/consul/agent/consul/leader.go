@@ -33,39 +33,25 @@ func (s *Server) monitorLeadership() {
 	// cleanup and to ensure we never run multiple leader loops.
 	raftNotifyCh := s.raftNotifyCh
 
-	var weAreLeaderCh chan struct{}
-	var leaderLoop sync.WaitGroup
+	var wg sync.WaitGroup
+	var stopCh chan struct{}
 	for {
 		select {
 		case isLeader := <-raftNotifyCh:
-			switch {
-			case isLeader:
-				if weAreLeaderCh != nil {
-					s.logger.Printf("[ERR] consul: attempted to start the leader loop while running")
-					continue
-				}
-
-				weAreLeaderCh = make(chan struct{})
-				leaderLoop.Add(1)
-				go func(ch chan struct{}) {
-					defer leaderLoop.Done()
-					s.leaderLoop(ch)
-				}(weAreLeaderCh)
+			if isLeader {
+				stopCh = make(chan struct{})
+				wg.Add(1)
+				go func() {
+					s.leaderLoop(stopCh)
+					wg.Done()
+				}()
 				s.logger.Printf("[INFO] consul: cluster leadership acquired")
-
-			default:
-				if weAreLeaderCh == nil {
-					s.logger.Printf("[ERR] consul: attempted to stop the leader loop while not running")
-					continue
-				}
-
-				s.logger.Printf("[DEBUG] consul: shutting down leader loop")
-				close(weAreLeaderCh)
-				leaderLoop.Wait()
-				weAreLeaderCh = nil
+			} else if stopCh != nil {
+				close(stopCh)
+				stopCh = nil
+				wg.Wait()
 				s.logger.Printf("[INFO] consul: cluster leadership lost")
 			}
-
 		case <-s.shutdownCh:
 			return
 		}
@@ -111,10 +97,9 @@ RECONCILE:
 	barrier := s.raft.Barrier(barrierWriteTimeout)
 	if err := barrier.Error(); err != nil {
 		s.logger.Printf("[ERR] consul: failed to wait for barrier: %v", err)
-		goto WAIT
+		return
 	}
 	metrics.MeasureSince([]string{"consul", "leader", "barrier"}, start)
-	metrics.MeasureSince([]string{"leader", "barrier"}, start)
 
 	// Check if we need to handle initial leadership actions
 	if !establishedLeader {
@@ -141,15 +126,6 @@ RECONCILE:
 	reconcileCh = s.reconcileCh
 
 WAIT:
-	// Poll the stop channel to give it priority so we don't waste time
-	// trying to perform the other operations if we have been asked to shut
-	// down.
-	select {
-	case <-stopCh:
-		return
-	default:
-	}
-
 	// Periodically reconcile as long as we are the leader,
 	// or when Serf events arrive
 	for {
@@ -435,7 +411,6 @@ func (s *Server) reconcileMember(member serf.Member) error {
 		return nil
 	}
 	defer metrics.MeasureSince([]string{"consul", "leader", "reconcileMember"}, time.Now())
-	defer metrics.MeasureSince([]string{"leader", "reconcileMember"}, time.Now())
 	var err error
 	switch member.Status {
 	case serf.StatusAlive:
@@ -799,7 +774,6 @@ func (s *Server) removeConsulServer(m serf.Member, port int) error {
 // to avoid blocking.
 func (s *Server) reapTombstones(index uint64) {
 	defer metrics.MeasureSince([]string{"consul", "leader", "reapTombstones"}, time.Now())
-	defer metrics.MeasureSince([]string{"leader", "reapTombstones"}, time.Now())
 	req := structs.TombstoneRequest{
 		Datacenter: s.config.Datacenter,
 		Op:         structs.TombstoneReap,

@@ -48,17 +48,17 @@ type RuntimeConfig struct {
 	ConsulSerfWANSuspicionMult       int
 	ConsulServerHealthInterval       time.Duration
 
-	ACLAgentMasterToken    string
-	ACLAgentToken          string
-	ACLDatacenter          string
-	ACLDefaultPolicy       string
-	ACLDownPolicy          string
-	ACLEnforceVersion8     bool
+	ACLAgentMasterToken string
+	ACLAgentToken       string
+	ACLDatacenter       string
+	ACLDefaultPolicy    string
+	ACLDownPolicy       string
+	ACLEnforceVersion8  bool
 	ACLEnableKeyListPolicy bool
-	ACLMasterToken         string
-	ACLReplicationToken    string
-	ACLTTL                 time.Duration
-	ACLToken               string
+	ACLMasterToken      string
+	ACLReplicationToken string
+	ACLTTL              time.Duration
+	ACLToken            string
 
 	AutopilotCleanupDeadServers      bool
 	AutopilotDisableUpgradeMigration bool
@@ -133,7 +133,6 @@ type RuntimeConfig struct {
 	DisableKeyringFile          bool
 	DisableRemoteExec           bool
 	DisableUpdateCheck          bool
-	DiscardCheckOutput          bool
 	EnableACLReplication        bool
 	EnableDebug                 bool
 	EnableScriptChecks          bool
@@ -147,7 +146,6 @@ type RuntimeConfig struct {
 	HTTPSAddrs                  []net.Addr
 	HTTPSPort                   int
 	KeyFile                     string
-	LeaveDrainTime              time.Duration
 	LeaveOnTerm                 bool
 	LogLevel                    string
 	NodeID                      types.NodeID
@@ -156,7 +154,6 @@ type RuntimeConfig struct {
 	PidFile                     string
 	RPCAdvertiseAddr            *net.TCPAddr
 	RPCBindAddr                 *net.TCPAddr
-	RPCHoldTimeout              time.Duration
 	RPCMaxBurst                 int
 	RPCProtocol                 int
 	RPCRateLimit                rate.Limit
