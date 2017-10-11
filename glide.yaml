@@ -1,0 +1,12 @@
+package: github.com/gviedma/cluster-examples
+import:
+- package: github.com/golang/protobuf
+  version: 1909bc2f63dc92bb931deace8b8312c4db72d12f
+  subpackages:
+  - proto
+- package: github.com/AsynkronIT/protoactor-go
+  version: d967f21caf983b9246718ae34c801df7e44425c1
+- package: github.com/AsynkronIT/goconsole
+  version: bfa12eebf7161a928e20d11a627cc689e99e2e50
+- package: github.com/AsynkronIT/gonet
+  version: 0553637be2257d123c1c1877d1f3bbd23adce41d
