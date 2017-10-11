@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	console "github.com/AsynkronIT/goconsole"
 	"github.com/AsynkronIT/protoactor-go/actor"
 	"github.com/AsynkronIT/protoactor-go/cluster"
 	"github.com/AsynkronIT/protoactor-go/cluster/consul"
@@ -27,12 +26,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cluster.Start("mycluster", "127.0.0.1:8081", cp)
+	cluster.Start("mycluster", "cluster-example-member:8081", cp)
 
 	sync()
-	async()
+	//async()
 
-	console.ReadLine()
+	log.Println("Sleeping")
+	time.Sleep(1 * time.Hour)
 }
 
 func sync() {
@@ -45,7 +45,12 @@ func sync() {
 	log.Printf("Message from SayHello: %v", res.Message)
 	for i := 0; i < 10000; i++ {
 		x := shared.GetHelloGrain(fmt.Sprintf("hello%v", i))
-		x.SayHello(&shared.HelloRequest{Name: "GAM"})
+		res, err := x.SayHello(&shared.HelloRequest{Name: "GAM"})
+		if err != nil {
+			log.Printf("Failed to get Message from SayHello: %v", err)
+		} else {
+			log.Printf("Message from SayHello: %v", res.Message)
+		}
 	}
 	log.Println("Done")
 }

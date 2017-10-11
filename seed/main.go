@@ -2,8 +2,8 @@ package main
 
 import (
 	"log"
+	"time"
 
-	console "github.com/AsynkronIT/goconsole"
 	"github.com/AsynkronIT/protoactor-go/actor"
 	"github.com/AsynkronIT/protoactor-go/cluster"
 	"github.com/AsynkronIT/protoactor-go/cluster/consul"
@@ -22,7 +22,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cluster.Start("mycluster", "127.0.0.1:8080", cp)
+	cluster.Start("mycluster", "cluster-example-seed:8080", cp)
 
 	hello := shared.GetHelloGrain("MyGrain")
 
@@ -31,5 +31,7 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("Message from grain: %v", res.Message)
-	console.ReadLine()
+
+	log.Println("Sleeping")
+	time.Sleep(1 * time.Hour)
 }
