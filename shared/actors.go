@@ -1,25 +1,27 @@
 package shared
 
-import "github.com/AsynkronIT/protoactor-go/cluster"
+import (
+	"fmt"
+	"log"
 
-//a Go struct implementing the Hello interface
-type hello struct {
-	cluster.Grain
+	actor "github.com/AsynkronIT/protoactor-go/actor"
+)
+
+type HelloCountActor struct {
+	count int
 }
 
-func (h *hello) SayHello(r *HelloRequest) (*HelloResponse, error) {
-	return &HelloResponse{Message: "hello " + r.Name + " from " + h.ID()}, nil
-}
-
-func (*hello) Add(r *AddRequest) (*AddResponse, error) {
-	return &AddResponse{Result: r.A + r.B}, nil
-}
-
-func (*hello) VoidFunc(r *AddRequest) (*Unit, error) {
-	return &Unit{}, nil
-}
-
-func init() {
-	//apply DI and setup logic
-	HelloFactory(func() Hello { return &hello{} })
+func (a *HelloCountActor) Receive(ctx actor.Context) {
+	switch msg := ctx.Message().(type) {
+	case *actor.Started:
+		fmt.Printf("Started HelloCountActor %v\n", ctx.Self().Id)
+	case *actor.Stopped:
+		fmt.Printf("Stopped HelloCountActor %v\n", ctx.Self().Id)
+	case *HelloRequest:
+		a.count++
+		m := fmt.Sprintf("Hello %s from %s, my count is %d", msg.Name, ctx.Self().Id, a.count)
+		ctx.Respond(&HelloResponse{Message: m})
+	default:
+		log.Printf("Unknown message %v", msg)
+	}
 }
