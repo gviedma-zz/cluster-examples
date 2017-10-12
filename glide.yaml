@@ -5,7 +5,7 @@ import:
   subpackages:
   - proto
 - package: github.com/AsynkronIT/protoactor-go
-  version: d967f21caf983b9246718ae34c801df7e44425c1
+  version: b1e245845d0d3aa7cd1bd27315156c5fcbb4798c
 - package: github.com/AsynkronIT/goconsole
   version: bfa12eebf7161a928e20d11a627cc689e99e2e50
 - package: github.com/AsynkronIT/gonet
