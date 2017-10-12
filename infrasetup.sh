@@ -28,6 +28,7 @@ docker_run() {
 }
 
 
+#docker_run c1 ad consul agent --dev -client 0.0.0.0
 docker_run c1 ad consul agent -server -bootstrap -client=0.0.0.0
 docker_run c2 ad consul agent -server -join=c1 -client=0.0.0.0
 docker_run c3 ad consul agent -server -join=c1 -client=0.0.0.0

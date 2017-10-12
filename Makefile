@@ -20,8 +20,7 @@ build-member:
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main . && \
 	docker build -t cluster-example-member -f Dockerfile.scratch .	
 
-build-all : build-seed build-member
-	echo done
+build-all: build-seed build-member
 
 run-seed:
 	docker run --env CONSUL_HTTP_ADDR=c1:8500 --net "ad" --rm --name cluster-example-seed cluster-example-seed
@@ -36,8 +35,6 @@ setup-infra:
 teardown-infra:
 	@echo "Tearing down mysql/consul" 
 	docker rm -f my c1 c2 c3
-
-run-all: run-infra run-seed run-member
 
 
 
